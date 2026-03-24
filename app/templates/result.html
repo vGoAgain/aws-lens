@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Scan Result — AWS Lens{% endblock %}
+{% block extra_head %}
+<style>
+  .section-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .section-label::after { content:''; flex: 1; height:1px; background: var(--border); }
+  .expand-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-family: var(--font-mono); font-size: 0.75rem;
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    transition: color 0.15s;
+  }
+  .expand-btn:hover { color: var(--orange); }
+  .details-panel {
+    display: none;
+    margin-top: 0.5rem;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .details-panel.open { display: block; }
+  .details-panel table { font-size: 0.75rem; }
+  .details-panel thead th { color: var(--text-dim); font-size: 0.68rem; }
+  .cost-total { font-family: var(--font-ui); font-size: 2.4rem; font-weight: 800; color: var(--orange); letter-spacing: -0.04em; }
+  .acct-pill {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 0.25rem 0.75rem;
+    font-size: 0.76rem; color: var(--text-muted);
+  }
+  .acct-pill span { color: var(--teal); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Scan Results</h1>
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.5rem;flex-wrap:wrap;">
+        <div class="acct-pill">Account: <span>{{ sess.aws_account_id }}</span></div>
+        <div class="acct-pill">Region: <span>{{ sess.aws_region }}</span></div>
+        {% if sess.alias %}<div class="acct-pill">Label: <span>{{ sess.alias }}</span></div>{% endif %}
+        <div class="acct-pill">{{ sess.scanned_at.strftime('%Y-%m-%d %H:%M UTC') }}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <a class="btn btn-ghost" href="{{ url_for('history') }}">History</a>
+      <a class="btn btn-orange" href="{{ url_for('index') }}">New Scan</a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-label">Est. Monthly Cost</div>
+      <div class="stat-value orange">${{ "%.2f"|format(sess.total_estimated_cost) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Services</div>
+      <div class="stat-value teal">{{ services|length }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Chargeable</div>
+      <div class="stat-value red">{{ chargeable|length }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Free / Low Cost</div>
+      <div class="stat-value green">{{ free|length }}</div>
+    </div>
+  </div>
+
+  <!-- Chargeable Services -->
+  {% if chargeable %}
+  <div style="margin-bottom:2rem;">
+    <div class="section-label">💰 Chargeable Services ({{ chargeable|length }})</div>
+    <div class="card" style="padding:0;">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Resources</th>
+              <th>Est. Monthly Cost</th>
+              <th>Cost Share</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in chargeable %}
+            {% set pct = ((s.estimated_monthly_cost / sess.total_estimated_cost * 100) if sess.total_estimated_cost > 0 else 0)|round(1) %}
+            <tr>
+              <td>
+                <span class="badge badge-charge">{{ s.service_name }}</span>
+              </td>
+              <td style="font-family:var(--font-ui);font-weight:700;">{{ s.resource_count }}</td>
+              <td style="color:var(--orange);font-weight:600;">${{ "%.2f"|format(s.estimated_monthly_cost) }}</td>
+              <td style="min-width:120px;">
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:2px;">{{ pct }}%</div>
+                <div class="cost-bar"><div class="cost-bar-fill" style="width:{{ pct }}%;"></div></div>
+              </td>
+              <td>
+                {% set det = s.to_dict().details %}
+                {% if det %}
+                  <button class="expand-btn" onclick="toggleDetails(this, 'det-{{ s.id }}')">▸ show</button>
+                  <div class="details-panel" id="det-{{ s.id }}">
+                    <table>
+                      <thead>
+                        <tr>{% for k in det[0].keys() %}<th>{{ k }}</th>{% endfor %}</tr>
+                      </thead>
+                      <tbody>
+                        {% for row in det %}
+                        <tr>{% for v in row.values() %}<td>{{ v }}</td>{% endfor %}</tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Free / pay-per-use services -->
+  {% if free %}
+  <div style="margin-bottom:2rem;">
+    <div class="section-label">✦ Active (Free / Pay-per-use) Services ({{ free|length }})</div>
+    <div class="card" style="padding:0;">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Resources</th>
+              <th>Billing</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in free %}
+            <tr>
+              <td><span class="badge badge-free">{{ s.service_name }}</span></td>
+              <td style="font-family:var(--font-ui);font-weight:700;">{{ s.resource_count }}</td>
+              <td style="color:var(--green);font-size:0.78rem;">pay per use / free tier</td>
+              <td>
+                {% set det = s.to_dict().details %}
+                {% if det %}
+                  <button class="expand-btn" onclick="toggleDetails(this, 'det-{{ s.id }}')">▸ show</button>
+                  <div class="details-panel" id="det-{{ s.id }}">
+                    <table>
+                      <thead>
+                        <tr>{% for k in det[0].keys() %}<th>{{ k }}</th>{% endfor %}</tr>
+                      </thead>
+                      <tbody>
+                        {% for row in det %}
+                        <tr>{% for v in row.values() %}<td>{{ v }}</td>{% endfor %}</tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not services %}
+  <div style="text-align:center;padding:4rem;color:var(--text-muted);">
+    <div style="font-size:2rem;margin-bottom:0.75rem;">◎</div>
+    <p>No active AWS resources found in <strong>{{ sess.aws_region }}</strong>.</p>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:1rem;padding-top:1.5rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:0.78rem;color:var(--text-dim);">
+      Costs are rough estimates. For exact billing, check AWS Cost Explorer.
+    </div>
+    <form method="post" action="{{ url_for('delete_session', session_id=sess.id) }}" onsubmit="return confirm('Delete this scan session?')">
+      <button class="btn btn-danger btn-sm" type="submit">Delete Session</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleDetails(btn, id) {
+  const panel = document.getElementById(id);
+  const open = panel.classList.toggle('open');
+  btn.textContent = (open ? '▾ hide' : '▸ show');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+{
+  "Comment": "Attach to the ECS Task Role so the app can read DB credentials from Secrets Manager.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SecretsManagerReadDB",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:prod/awslens/db-*"
+    }
+  ]
+}

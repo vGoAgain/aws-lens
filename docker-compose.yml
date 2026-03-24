@@ -1,0 +1,63 @@
+version: "3.9"
+
+# ─── AWS Lens — Local Development Stack ──────────────────────────────────────
+#
+# Quick start:
+#   cp .env.example .env
+#   docker compose up --build
+#   open http://localhost:5000
+#
+# In production (AWS ECS + RDS):
+#   - The 'db' service below is replaced by Amazon RDS PostgreSQL
+#   - Set DB_SECRET_NAME to pull credentials from AWS Secrets Manager
+#   - Push the app image to ECR, deploy via ECS (see scripts/deploy.sh)
+
+services:
+
+  # ── PostgreSQL — LOCAL ONLY (replaced by RDS in AWS) ─────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-awslensdb}
+      POSTGRES_USER:     ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-awslensdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Flask App ─────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      # ── DB (plain env vars for local dev) ─────────────────────────────────
+      DB_HOST:     db
+      DB_PORT:     "5432"
+      DB_NAME:     ${DB_NAME:-awslensdb}
+      DB_USER:     ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+
+      # ── AWS Secrets Manager (uncomment for AWS deploy) ────────────────────
+      # DB_SECRET_NAME: "prod/awslens/db"
+      # AWS_REGION:     "us-east-1"
+
+      # ── Flask ─────────────────────────────────────────────────────────────
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-dev-secret-change-me}
+      FLASK_DEBUG:      "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pg_data:

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{% block title %}AWS Lens{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #080c10;
+      --bg2:        #0e1318;
+      --surface:    #131a22;
+      --surface2:   #1a2332;
+      --border:     #1f2d3d;
+      --border2:    #263647;
+      --orange:     #ff9900;
+      --orange-dim: #cc7a00;
+      --teal:       #00c7b7;
+      --red:        #ff4b4b;
+      --green:      #00d97e;
+      --blue:       #4db8ff;
+      --text:       #d4e0ef;
+      --text-muted: #5a7a99;
+      --text-dim:   #3d5570;
+      --font-ui:    'Syne', sans-serif;
+      --font-mono:  'JetBrains Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 15px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255,153,0,0.06) 0%, transparent 60%);
+    }
+
+    /* ── Top nav ── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+      padding: 0 2rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 200;
+    }
+    .nav-brand {
+      font-family: var(--font-ui);
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      text-decoration: none;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .nav-brand .dot { color: var(--orange); }
+    .nav-links { display: flex; gap: 0.25rem; }
+    .nav-link {
+      padding: 0.35rem 0.9rem;
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .nav-link:hover { color: var(--text); background: var(--surface2); }
+    .nav-link.active { color: var(--orange); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-orange { background: var(--orange); color: #000; font-weight: 600; }
+    .btn-orange:hover { background: #ffad33; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border2);
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--orange); }
+    .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--border2); }
+    .btn-danger:hover { background: var(--red); color: #fff; }
+    .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.76rem; }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    /* ── Flash ── */
+    .flash-zone { max-width: 1100px; margin: 1rem auto 0; padding: 0 2rem; }
+    .flash {
+      padding: 0.7rem 1.2rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid;
+    }
+    .flash-success { background: rgba(0,217,126,0.07); border-color: var(--green); color: var(--green); }
+    .flash-error   { background: rgba(255,75,75,0.07);  border-color: var(--red);   color: var(--red);   }
+
+    /* ── Page header ── */
+    .page-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-title {
+      font-family: var(--font-ui);
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+    .page-sub { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.3rem; }
+
+    /* ── Table ── */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead tr { border-bottom: 1px solid var(--border2); }
+    thead th {
+      text-align: left;
+      padding: 0.6rem 1rem;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 400;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 0.8rem 1rem; vertical-align: middle; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+    }
+    .badge-charge { background: rgba(255,153,0,0.12); color: var(--orange); border: 1px solid rgba(255,153,0,0.25); }
+    .badge-free   { background: rgba(0,217,126,0.08);  color: var(--green);  border: 1px solid rgba(0,217,126,0.2);  }
+    .badge-zero   { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+
+    /* ── Stat cards ── */
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+    }
+    .stat-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .stat-value { font-family: var(--font-ui); font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; }
+    .stat-value.orange { color: var(--orange); }
+    .stat-value.teal   { color: var(--teal); }
+    .stat-value.green  { color: var(--green); }
+    .stat-value.red    { color: var(--red); }
+
+    /* ── Form elements ── */
+    .input, select.input {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 0.55rem 0.9rem;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+      appearance: none;
+    }
+    .input:focus, select.input:focus { border-color: var(--orange); }
+    .input::placeholder { color: var(--text-dim); }
+
+    /* ── Section card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.75rem;
+    }
+    .card-title {
+      font-family: var(--font-ui);
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: var(--text);
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .card-title .icon { color: var(--orange); }
+
+    /* ── Cost bar ── */
+    .cost-bar-wrap { margin-top: 0.3rem; }
+    .cost-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 0.3rem;
+    }
+    .cost-bar-fill { height: 100%; background: var(--orange); border-radius: 2px; transition: width 0.6s ease; }
+
+    @media (max-width: 640px) {
+      .page-header { flex-direction: column; gap: 1rem; }
+      .stat-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="{{ url_for('index') }}">AWS<span class="dot">▸</span>Lens</a>
+  <div class="nav-links">
+    <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Scan</a>
+    <a class="nav-link {% if request.endpoint in ['history','history_detail'] %}active{% endif %}" href="{{ url_for('history') }}">History</a>
+  </div>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-zone">
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+</body>
+</html>

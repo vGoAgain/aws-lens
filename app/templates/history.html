@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}History — AWS Lens{% endblock %}
+{% block extra_head %}
+<style>
+  .filter-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; min-width: 160px; }
+  .filter-group label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .total-cost-cell { color: var(--orange); font-weight: 600; }
+  .no-results { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+  .session-link { color: var(--text); text-decoration: none; font-weight: 500; }
+  .session-link:hover { color: var(--orange); }
+  .mini-bar {
+    display: flex; gap: 2px; align-items: flex-end; height: 16px;
+  }
+  .mini-bar-seg { width: 4px; background: var(--orange); border-radius: 1px; opacity: 0.7; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Scan History</h1>
+      <p class="page-sub">{{ sessions|length }} session{% if sessions|length != 1 %}s{% endif %} found</p>
+    </div>
+    <a class="btn btn-orange" href="{{ url_for('index') }}">+ New Scan</a>
+  </div>
+
+  <!-- Date filter -->
+  <form method="get" action="{{ url_for('history') }}" class="filter-card">
+    <div class="filter-group">
+      <label>From</label>
+      <input class="input" type="date" name="date_from" value="{{ date_from }}">
+    </div>
+    <div class="filter-group">
+      <label>To</label>
+      <input class="input" type="date" name="date_to" value="{{ date_to }}">
+    </div>
+    <button class="btn btn-orange" type="submit">Filter</button>
+    {% if date_from or date_to %}
+      <a class="btn btn-ghost" href="{{ url_for('history') }}">Clear</a>
+    {% endif %}
+  </form>
+
+  {% if sessions %}
+  <div class="card" style="padding:0;">
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Timestamp (UTC)</th>
+            <th>Label</th>
+            <th>Account</th>
+            <th>Region</th>
+            <th>Services</th>
+            <th>Est. Monthly Cost</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sessions %}
+          <tr>
+            <td style="color:var(--text-dim);font-size:0.76rem;">{{ s.id }}</td>
+            <td>
+              <a class="session-link" href="{{ url_for('result', session_id=s.id) }}">
+                {{ s.scanned_at.strftime('%Y-%m-%d') }}
+                <span style="color:var(--text-muted);font-size:0.78rem;">{{ s.scanned_at.strftime('%H:%M') }}</span>
+              </a>
+            </td>
+            <td>
+              {% if s.alias %}
+                <span style="color:var(--teal);font-size:0.82rem;">{{ s.alias }}</span>
+              {% else %}
+                <span style="color:var(--text-dim);">—</span>
+              {% endif %}
+            </td>
+            <td style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-muted);">{{ s.aws_account_id }}</td>
+            <td style="font-size:0.8rem;color:var(--text-muted);">{{ s.aws_region }}</td>
+            <td>
+              <span style="font-family:var(--font-ui);font-weight:700;">{{ s.services|length }}</span>
+              <span style="color:var(--text-dim);font-size:0.76rem;">active</span>
+            </td>
+            <td class="total-cost-cell">${{ "%.2f"|format(s.total_estimated_cost) }}</td>
+            <td>
+              <div style="display:flex;gap:0.4rem;">
+                <a class="btn btn-ghost btn-sm" href="{{ url_for('result', session_id=s.id) }}">View</a>
+                <form method="post" action="{{ url_for('delete_session', session_id=s.id) }}"
+                      style="display:inline;" onsubmit="return confirm('Delete scan #{{ s.id }}?')">
+                  <button class="btn btn-danger btn-sm" type="submit">✕</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Summary bar -->
+  <div style="margin-top:1.25rem;display:flex;gap:2rem;flex-wrap:wrap;">
+    {% set total_spend = sessions|sum(attribute='total_estimated_cost') %}
+    <div>
+      <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;">Combined Est. Monthly Cost</div>
+      <div style="font-family:var(--font-ui);font-size:1.5rem;font-weight:800;color:var(--orange);">${{ "%.2f"|format(total_spend) }}</div>
+    </div>
+    <div>
+      <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;">Avg per Scan</div>
+      <div style="font-family:var(--font-ui);font-size:1.5rem;font-weight:800;color:var(--teal);">
+        ${{ "%.2f"|format(total_spend / sessions|length) }}
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="no-results">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem;color:var(--text-dim);">◎</div>
+    <p style="margin-bottom:0.5rem;">No scans found{% if date_from or date_to %} for the selected date range{% endif %}.</p>
+    <a class="btn btn-orange" style="margin-top:1rem;" href="{{ url_for('index') }}">Run your first scan</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Scan — AWS Lens{% endblock %}
+{% block extra_head %}
+<style>
+  .hero {
+    text-align: center;
+    padding: 3.5rem 1rem 2rem;
+  }
+  .hero-title {
+    font-family: var(--font-ui);
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    margin-bottom: 0.75rem;
+  }
+  .hero-title span { color: var(--orange); }
+  .hero-sub { color: var(--text-muted); font-size: 0.88rem; max-width: 460px; margin: 0 auto 2.5rem; line-height: 1.6; }
+
+  .scan-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2.5rem;
+    max-width: 640px;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+  }
+  .scan-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--orange), transparent);
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+  .form-group.full { grid-column: 1 / -1; }
+  label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .warning-note {
+    background: rgba(255,153,0,0.06);
+    border: 1px solid rgba(255,153,0,0.2);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+    margin-bottom: 1.5rem;
+  }
+  .warning-note strong { color: var(--orange); }
+  .submit-row { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+
+  .loader-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(8,12,16,0.85);
+    z-index: 999;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 1.25rem;
+  }
+  .loader-overlay.active { display: flex; }
+  .spinner {
+    width: 44px; height: 44px;
+    border: 3px solid var(--border2);
+    border-top-color: var(--orange);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { font-family: var(--font-ui); font-weight: 700; color: var(--orange); font-size: 1rem; }
+  .loader-sub { color: var(--text-muted); font-size: 0.8rem; }
+  .scanning-steps { font-size: 0.75rem; color: var(--text-dim); text-align: center; }
+  .scanning-steps span { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="hero">
+    <h1 class="hero-title">Discover what's running<br>in your <span>AWS account</span></h1>
+    <p class="hero-sub">Enter your credentials to scan all active services, identify chargeable resources, and log estimated costs — all in one shot.</p>
+  </div>
+
+  <div class="scan-card">
+    <div class="warning-note">
+      <strong>⚠ Security notice:</strong> Credentials are used only for the current scan and are never stored.
+      Use a read-only IAM user (attach <code>ReadOnlyAccess</code> policy) for safety.
+      Credentials are transmitted over HTTPS only.
+    </div>
+
+    <form method="post" action="{{ url_for('scan') }}" id="scanForm">
+      <div class="form-grid">
+
+        <div class="form-group full">
+          <label for="alias">Scan Label (optional)</label>
+          <input class="input" type="text" id="alias" name="alias" placeholder="e.g. prod-audit-march">
+        </div>
+
+        <div class="form-group">
+          <label for="access_key">AWS Access Key ID *</label>
+          <input class="input" type="text" id="access_key" name="access_key" required
+            placeholder="AKIAIOSFODNN7EXAMPLE" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="form-group">
+          <label for="secret_key">AWS Secret Access Key *</label>
+          <input class="input" type="password" id="secret_key" name="secret_key" required
+            placeholder="wJalrXUtn…" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="region">Primary Region</label>
+          <select class="input" id="region" name="region">
+            <option value="us-east-1">us-east-1 (N. Virginia)</option>
+            <option value="us-east-2">us-east-2 (Ohio)</option>
+            <option value="us-west-1">us-west-1 (N. California)</option>
+            <option value="us-west-2">us-west-2 (Oregon)</option>
+            <option value="eu-west-1">eu-west-1 (Ireland)</option>
+            <option value="eu-west-2">eu-west-2 (London)</option>
+            <option value="eu-west-3">eu-west-3 (Paris)</option>
+            <option value="eu-central-1">eu-central-1 (Frankfurt)</option>
+            <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+            <option value="ap-southeast-2">ap-southeast-2 (Sydney)</option>
+            <option value="ap-northeast-1">ap-northeast-1 (Tokyo)</option>
+            <option value="sa-east-1">sa-east-1 (São Paulo)</option>
+            <option value="ca-central-1">ca-central-1 (Canada)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="session_token">Session Token (optional)</label>
+          <input class="input" type="password" id="session_token" name="session_token"
+            placeholder="For temporary credentials" autocomplete="off">
+        </div>
+
+      </div>
+
+      <div class="submit-row">
+        <button class="btn btn-orange" type="submit" id="scanBtn">
+          ▶&nbsp; Run Scan
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loader-overlay" id="loader">
+  <div class="spinner"></div>
+  <div>
+    <div class="loader-text">Scanning AWS account…</div>
+    <div class="loader-sub" id="loaderStep">Connecting to AWS…</div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  "Verifying credentials via STS…",
+  "Scanning EC2 Instances…",
+  "Scanning RDS databases…",
+  "Scanning S3 buckets…",
+  "Scanning Lambda, ECS, EKS…",
+  "Scanning ElastiCache, DynamoDB…",
+  "Scanning CloudFront, NAT, ELB…",
+  "Scanning Secrets Manager, SNS, SQS…",
+  "Scanning Redshift clusters…",
+  "Calculating estimated costs…",
+  "Persisting results to database…",
+];
+document.getElementById("scanForm").addEventListener("submit", function() {
+  document.getElementById("loader").classList.add("active");
+  const el = document.getElementById("loaderStep");
+  let i = 0;
+  setInterval(() => { el.textContent = steps[i++ % steps.length]; }, 1500);
+});
+</script>
+{% endblock %}
