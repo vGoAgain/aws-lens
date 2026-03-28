@@ -1,0 +1,20 @@
+#Application Build Workflow
+name: Build AWS-lens application
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Build Application
+        run: |
+          echo "Building the AWS-lens application..."
+          docker build -t vp-aws-lens:latest .
+          echo "Build completed successfully."
+  
