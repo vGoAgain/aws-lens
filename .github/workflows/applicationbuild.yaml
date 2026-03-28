@@ -23,7 +23,7 @@ jobs:
       - name: Build Application
         run: |
           echo "Building the AWS-lens application..."
-          docker build -t {{ env.ECR_REPOSITORY }}:{{ env.image_tag }} .
+          docker build -t ${{ env.ECR_REPOSITORY }}:${{ env.image_tag }} .
           echo "Build completed successfully."
       
       - name: Configure AWS Credentials
@@ -40,5 +40,5 @@ jobs:
       - name: Push to Amazon ECR
         run: |
           echo "Pushing to Amazon ECR..."
-          docker push {{ env.ECR_REPOSITORY }}:{{ env.image_tag }}
+          docker push ${{ env.ECR_REPOSITORY }}:${{ env.image_tag }}
           echo "Push completed successfully."
