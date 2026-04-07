@@ -42,3 +42,5 @@ jobs:
           echo "Pushing to Amazon ECR..."
           docker push ${{ env.ECR_REPOSITORY }}:${{ env.image_tag }}
           echo "Push completed successfully."
+
+    
