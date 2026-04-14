@@ -7,3 +7,6 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+.terraform.tfstate
+.terraform.tfstate.backup
+.terraform/
