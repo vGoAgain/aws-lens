@@ -21,11 +21,17 @@ variable "alb_ingress_rules" {
 
 variable "container_port" {
   default = 5000
-  type = number
+  type    = number
 }
 
-variable "rds_subnet" {
-  type = list(map(string))
-  default = [{"cidr" = "10.0.5.0/24", "availability_zone" = "eu-west-3a"} , {"cidr" = "10.0.6.0/24", "availability_zone" = "eu-west-3b"}]
+variable "rds_subnet_list" {
+  type = map(list(object({
+    cidr              = string
+    availability_zone = string
+  })))
+  default = {
+    "subnet1" = [{ cidr = "10.0.5.0/24", availability_zone = "eu-west-3a" }]
+    "subnet2" = [{ cidr = "10.0.6.0/24", availability_zone = "eu-west-3b" }]
+  }
   description = "The RDS subnet group"
 }

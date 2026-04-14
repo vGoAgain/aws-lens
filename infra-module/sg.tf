@@ -5,7 +5,7 @@ resource "aws_security_group" "alb_sg" {
   vpc_id      = module.network.vpc_id
 
   dynamic "ingress" {
-    for_each = var.alb_ingress_rules
+    for_each = toset(var.alb_ingress_rules)
     content {
       from_port   = ingress.value.from_port
       to_port     = ingress.value.to_port
@@ -31,15 +31,15 @@ resource "aws_security_group" "ecs_tasks_sg" {
   name        = "${var.prefix}-ecs-tasks-sg"
   description = "Security group for ECS tasks"
   vpc_id      = module.network.vpc_id
-  depends_on = [ aws_security_group.alb_sg ]
+  depends_on  = [aws_security_group.alb_sg]
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_for_app" {
   security_group_id = aws_security_group.ecs_tasks_sg.id
   #cidr_ipv4         = "0.0.0.0/0"
-  from_port         = var.container_port
-  ip_protocol       = "tcp"
-  to_port           = var.container_port
+  from_port                    = var.container_port
+  ip_protocol                  = "tcp"
+  to_port                      = var.container_port
   referenced_security_group_id = aws_security_group.alb_sg.id # only allow traffic from ALB security group
 }
 
@@ -54,7 +54,7 @@ resource "aws_security_group" "db_sg" {
   name        = "${var.prefix}-db-sg"
   description = "Security group for RDS instance"
   vpc_id      = module.network.vpc_id
-  depends_on = [ aws_security_group.ecs_tasks_sg ]
+  depends_on  = [aws_security_group.ecs_tasks_sg]
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_for_ingress_db" {

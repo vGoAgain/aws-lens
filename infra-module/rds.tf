@@ -1,8 +1,8 @@
 resource "aws_subnet" "tf-rds-subnets" {
-  for_each = toset(var.rds_subnet)
-  vpc_id = module.network.vpc_id
-  cidr_block = each.value.cidr
-  availability_zone = each.value.availability_zone
+  for_each          = var.rds_subnet_list
+  vpc_id            = module.network.vpc_id
+  cidr_block        = each.value[0].cidr
+  availability_zone = each.value[0].availability_zone
   tags = {
     "Name" = "${var.prefix}-rds-subnet-${each.key}"
   }
@@ -12,7 +12,7 @@ resource "aws_subnet" "tf-rds-subnets" {
 # subnet group
 resource "aws_db_subnet_group" "tf-rds-subnet-group" {
   name       = "${var.prefix}-${var.app_name}-db-subnet-group"
-  subnet_ids = aws_subnet.tf-rds-subnets[*].id
+  subnet_ids = values(aws_subnet.tf-rds-subnets)[*].id
 }
 
 # password -> aws secrets manager
@@ -29,7 +29,7 @@ resource "aws_secretsmanager_secret" "db-password" {
 
 # secret manager version
 resource "aws_secretsmanager_secret_version" "rds-db-secret-version" {
-  secret_id     = aws_secretsmanager_secret.db-password.id
+  secret_id = aws_secretsmanager_secret.db-password.id
   secret_string = jsonencode({
     username = aws_db_instance.postgres.username
     password = random_password.rds-db-password.result
@@ -38,7 +38,7 @@ resource "aws_secretsmanager_secret_version" "rds-db-secret-version" {
     dbname   = aws_db_instance.postgres.db_name
   })
 
-  depends_on = [ aws_db_instance.postgres ]
+  depends_on = [aws_db_instance.postgres]
 }
 
 # rds instance
